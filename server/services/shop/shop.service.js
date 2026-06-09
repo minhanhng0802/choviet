@@ -11,16 +11,18 @@ module.exports = {
 			cache: false,
 			params: {
 				shopId: [
-					{
-						type: 'string',
-						numeric: true,
-					},
+					{ type: 'string', numeric: true },
 					{ type: 'number' },
 				],
 			},
 			async handler(ctx) {
 				try {
 					const shopId = Number(ctx.params.shopId);
+
+					if (!Number.isInteger(shopId) || shopId <= 0) {
+						throw new MoleculerError('Invalid shopId', 400);
+					}
+
 					const shop = await Shop.findOne({
 						raw: true,
 						attributes: {
@@ -29,17 +31,26 @@ module.exports = {
 								[Sequelize.col('Account.status'), 'status'],
 							],
 						},
-						where: {
-							shopId,
-						},
+						where: { shopId },
 						include: {
 							model: Account,
 							attributes: [],
+							required: false,
 						},
 					});
+
+					if (!shop) {
+						throw new MoleculerError('Shop not found', 404);
+					}
+
 					return shop;
 				} catch (error) {
 					this.logger.error(error);
+
+					if (error instanceof MoleculerError) {
+						throw error;
+					}
+
 					throw new MoleculerError(error.toString(), 500);
 				}
 			},

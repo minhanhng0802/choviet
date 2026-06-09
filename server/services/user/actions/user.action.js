@@ -16,6 +16,7 @@ const {
 } = require('../user.db');
 
 const { MoleculerError } = require('moleculer').Errors;
+
 module.exports = {
 	postCreateShop: {
 		params: {
@@ -50,6 +51,15 @@ module.exports = {
 					logoUrl = '',
 				} = ctx.params;
 
+				const existedAccount = await Account.findOne({
+					where: { email },
+					transaction: tx,
+				});
+
+				if (existedAccount) {
+					throw new MoleculerError('Email already exists', 400);
+				}
+
 				const account = await Account.create(
 					{
 						email,
@@ -66,7 +76,7 @@ module.exports = {
 					{
 						accountId: account.accountId,
 						phone,
-						foundingDate: new Date(foundingDate),
+						foundingDate: foundingDate ? new Date(foundingDate) : null,
 						name,
 						supporterName,
 						catalogId,
@@ -77,7 +87,7 @@ module.exports = {
 					{ transaction: tx },
 				);
 
-				const contract = await Contract.create(
+				await Contract.create(
 					{
 						shopId: shop.shopId,
 						businessLicense,
@@ -95,6 +105,11 @@ module.exports = {
 			} catch (error) {
 				await tx.rollback();
 				this.logger.error(error);
+
+				if (error instanceof MoleculerError) {
+					throw error;
+				}
+
 				throw new MoleculerError(error.toString(), 500);
 			}
 		},
@@ -126,12 +141,13 @@ module.exports = {
 		},
 		async handler(ctx) {
 			const { accountId, status } = ctx.params;
-			console.log(accountId, status);
+
 			try {
 				await Account.update(
 					{ status: Number(status) },
 					{ where: { accountId: Number(accountId) } },
 				);
+
 				return true;
 			} catch (error) {
 				this.logger.error(error);
