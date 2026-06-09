@@ -85,6 +85,22 @@ module.exports = {
 				});
 
 				await Promise.all(promises);
+				
+				// Gửi email xác nhận đặt hàng cho user(Bao)
+				try {
+					const email = await ctx.call(`${SVC_NAME.USER}.getUserEmailByUserId`, { userId });
+					if (email) {
+						await ctx.call(`${SVC_NAME.NOTIFICATION}.sendOrderStatusEmail`, {
+							email,
+							receiverName: receiverName,
+							orderCode,
+							status: ORDER_STATUS.PENDING_SHOP,
+						});
+					}
+				} catch (notifErr) {
+					this.logger.warn('[Order] Không gửi được email thông báo:', notifErr.message);
+				}
+
 				return true;
 			} catch (error) {
 				this.logger.error(error);
@@ -398,6 +414,23 @@ module.exports = {
 					{ _id: orderId },
 					{ orderStatus: Number(status) },
 				);
+				// Gửi email thông báo đổi trạng thái cho user
+				try {
+					const order = await Order.findById(orderId);
+					if (order) {
+						const email = await ctx.call(`${SVC_NAME.USER}.getUserEmailByUserId`, { userId: order.userId });
+						if (email) {
+							await ctx.call(`${SVC_NAME.NOTIFICATION}.sendOrderStatusEmail`, {
+								email,
+								receiverName: order.receiverName,
+								orderCode: order.orderCode,
+								status: Number(status),
+							});
+						}
+					}
+				} catch (notifErr) {
+					this.logger.warn('[Order] Không gửi được email thông báo status:', notifErr.message);
+				}
 				return true;
 			} catch (error) {
 				this.logger.error(error);

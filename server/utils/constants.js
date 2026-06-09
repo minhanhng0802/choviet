@@ -12,6 +12,7 @@ module.exports = {
 		SHOP: 'shop',
 		SUPPORT: 'support',
 		USER: 'user',
+		NOTIFICATION: 'notification',
 	},
 
 	// Database URL

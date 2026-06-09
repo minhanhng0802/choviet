@@ -132,7 +132,47 @@ module.exports = {
 					{ status: Number(status) },
 					{ where: { accountId: Number(accountId) } },
 				);
+
+				// Gửi email thông báo shop được duyệt(Bao)
+				if (Number(status) === ACCOUNT_STATUS.ACTIVE) {
+					try {
+						const account = await Account.findOne({ where: { accountId: Number(accountId) }, raw: true });
+						const shop = await Shop.findOne({ where: { accountId: Number(accountId) }, raw: true });
+						if (account && shop) {
+							await ctx.call(`${SVC_NAME.NOTIFICATION}.sendShopApprovedEmail`, {
+								email: account.email,
+								shopName: shop.shopName,
+							});
+						}
+					} catch (notifErr) {
+						this.logger.warn('[User] Không gửi được email duyệt shop:', notifErr.message);
+					}
+				}
+
 				return true;
+			} catch (error) {
+				this.logger.error(error);
+				throw new MoleculerError(error.toString(), 500);
+			}
+		},
+	},
+	
+	/*Bao
+	 */
+	getUserEmailByUserId: {
+		cache: false,
+		params: {
+			userId: ['number', { type: 'string', numeric: true }],
+		},
+		async handler(ctx) {
+			try {
+				const user = await User.findOne({
+					where: { userId: ctx.params.userId },
+					include: [{ model: Account, attributes: ['email'] }],
+					raw: true,
+				});
+				if (!user) return null;
+				return user['Account.email'] || null;
 			} catch (error) {
 				this.logger.error(error);
 				throw new MoleculerError(error.toString(), 500);
